@@ -1,11 +1,3 @@
-/*
-    With Rc<T>, we can create weak references by calling Rc::downgrade(), which returns smart pointer Weak<T>
-        - Weak references don't express ownership (doesn't determine when value drops)
-        - Is kept track of by weak_count instead of strong_count (doesn't need to be 0 for cleanup)
-
-    Because the value Weak<T> references might've been dropped, we use Rc::upgrade() which returns an Option<Rc<T>>
-*/
-
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -30,40 +22,54 @@ struct Node {
 }
 
 fn main() {
-    // Create leaf (bottom) node without any parent
     let leaf = Rc::new(Node {
         value: 3,
         parent: RefCell::new(Weak::new()),
         children: RefCell::new(vec![]),
     });
 
-    // Printing leaf node parent results to None 
+    // Just created leaf, so S-1, W-0
     println!(
         "leaf strong = {}, weak = {}",
         Rc::strong_count(&leaf),
         Rc::weak_count(&leaf),
     );
 
-    // Create branch node with no parent
-    let branch = Rc::new(Node {
-        value: 5,
-        parent: RefCell::new(Weak::new()),
-        children: RefCell::new(vec![Rc::clone(&leaf)]),
-    });
+    {
+        let branch = Rc::new(Node {
+            value: 5,
+            parent: RefCell::new(Weak::new()),
+            children: RefCell::new(vec![Rc::clone(&leaf)]),
+        });
 
-    println!("{} - {}", Rc::strong_count(&leaf), Rc::strong_count(&branch));
+        *leaf.parent.borrow_mut() = Rc::downgrade(&branch);
+
+        /*
+            We create a new Rc<NodeE> branch, it takes a clone of leaf, so leaf: S-2, W-0 & branch: S-1, W-0
+            We mutably borrow leaf's parent & assign it to a Weak<> branch, so branch: S-1, W-1
+        */
+        println!(
+            "branch strong = {}, weak = {}",
+            Rc::strong_count(&branch),
+            Rc::weak_count(&branch),
+        );
+
+        println!(
+            "leaf strong = {}, weak = {}",
+            Rc::strong_count(&leaf),
+            Rc::weak_count(&leaf),
+        );
+    }
+
     /*
-        First we take leaf then dereference it out of the Rc<>
-        Get the parent then take a mutable borrow (interior mutability w/ RefCell<>)
-        Set the (now) mutable parent property to a Weak<> ptr that contains branch
+        Branch goes out of scope & branch S-0, so it gets dropped
+        Because of branch dropping, the Rc::clone() of leaf also gets dropped, so leaf: S-1, W-0
+        Rust automatically returns None for us since branch was dropped in the inner scope
     */
-    *leaf.parent.borrow_mut() = Rc::downgrade(&branch);
-
-    // Now when we print out leaf's parent, it shows the actual parent we assigned it to
     println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
-
-    // Here, leaf strong_count is 2 & branch strong_count is 1
-    // When leaf drops, its strong_count only goes down by 1, leaving it at 1
-    // When branch drops, its strong_count goes to 0, so everything within it, including the Rc::clone(&leaf) is dropped as well,
-    // making leaf strong_count go to 0 as well, which makes both get dropped properly
+    println!(
+        "leaf strong = {}, weak = {}",
+        Rc::strong_count(&leaf),
+        Rc::weak_count(&leaf),
+    );
 }
