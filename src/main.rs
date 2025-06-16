@@ -1,47 +1,33 @@
+/*
+    Because we can't use Rc<T>, we use Arc<T> which is safe for concurrent/parallel situations
+        - the A stands for atomic; just know as of now it's just primitive types safe to use across threads
+        - The reason all types aren't thread safe is bc it comes with a performance penalty
+*/
+
+use std::sync::{Arc, Mutex};
 use std::thread;
-use std::sync::mpsc;
-use std::time::Duration;
 
 fn main()  {
-    let (tx, rx) = mpsc::channel();
+    // Arc<T> & Rc<T> have same API 
+    // In simple cases like this, we can use types in std::sync::atomic 
+    let counter = Arc::new(Mutex::new(0));
+    let mut handles = vec![];
 
-    // We can have multiple producers & a single consumer (mpsc), so we can clone a sender & use it in another thread
-    // Each thread gets their own producer/sender/transmitter
-    let tx1 = tx.clone();
-    thread::spawn(move || {
-        let vals = vec![
-            String::from("hi"),
-            String::from("from"),
-            String::from("the"),
-            String::from("thread"),
-        ];
-
-        for val in vals {
-            tx1.send(val).unwrap();
-            thread::sleep(Duration::from_secs(1));
-        }
-    });
-
-    thread::spawn(move || {
-        let vals = vec![
-            String::from("more"),
-            String::from("messages"),
-            String::from("for"),
-            String::from("you"),
-        ];
-
-        for val in vals {
-            tx.send(val).unwrap();
-            thread::sleep(Duration::from_secs(1));
-        }
-    });
-
-    for received in rx {
-        println!("Got: {received}");
+    for _ in 0..10 {
+        let counter = Arc::clone(&counter);
+        let handle = thread::spawn(move || {
+            // Notice how we could get a mutable refernce to counter despite counter itself not being mutable
+            // Mutex<T> provides interior mutability (The Cell family does this)
+            // Mutex<T> can create deadlocks so be careful
+            let mut num = counter.lock().unwrap();
+            *num += 1;
+        });
+        handles.push(handle);
     }
 
-    /*
-        Different outputs happen depending on the system
-        We can get different/weirder results by experimenting w/ thread::sleep() as well
-    */
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    
+    println!("Result: {}", *counter.lock().unwrap());
 }
