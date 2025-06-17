@@ -1,33 +1,38 @@
-/*
-    Because we can't use Rc<T>, we use Arc<T> which is safe for concurrent/parallel situations
-        - the A stands for atomic; just know as of now it's just primitive types safe to use across threads
-        - The reason all types aren't thread safe is bc it comes with a performance penalty
-*/
+use trpl::{Either, Html};
 
-use std::sync::{Arc, Mutex};
-use std::thread;
+// Super Basic Web Scraper!
 
-fn main()  {
-    // Arc<T> & Rc<T> have same API 
-    // In simple cases like this, we can use types in std::sync::atomic 
-    let counter = Arc::new(Mutex::new(0));
-    let mut handles = vec![];
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
 
-    for _ in 0..10 {
-        let counter = Arc::clone(&counter);
-        let handle = thread::spawn(move || {
-            // Notice how we could get a mutable refernce to counter despite counter itself not being mutable
-            // Mutex<T> provides interior mutability (The Cell family does this)
-            // Mutex<T> can create deadlocks so be careful
-            let mut num = counter.lock().unwrap();
-            *num += 1;
-        });
-        handles.push(handle);
-    }
+    trpl::run(async {
+        // Call page_title() for each url to get futures
+        let title_fut_1 = page_title(&args[1]);
+        let title_fut_2 = page_title(&args[2]);
 
-    for handle in handles {
-        handle.join().unwrap();
-    }
-    
-    println!("Result: {}", *counter.lock().unwrap());
+        // We pass the futures into ::race() to see which finishes first
+        // Runs it for us
+        // We would usually use ::select() more
+        // It returns an Either to show which finished first
+        let (url, maybe_title) =
+            match trpl::race(title_fut_1, title_fut_2).await {
+                Either::Left(left) => left,
+                Either::Right(right) => right,
+            };
+
+        println!("{url} returned first");
+        match maybe_title {
+            Some(title) => println!("Its page title is: '{title}'"),
+            None => println!("Its title could not be parsed."),
+        }
+    })
+}
+
+// Changed return type to include original url
+async fn page_title(url: &str) -> (&str, Option<String>) {
+    let text = trpl::get(url).await.text().await;
+    let title = Html::parse(&text)
+        .select_first("title")
+        .map(|title| title.inner_html());
+    (url, title)
 }
