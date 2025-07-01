@@ -36,9 +36,16 @@ trait Animal {
     fn baby_name() -> String;
 }
 
+trait Fat {
+    fn fat_name() -> String {
+        String::from("Fat")
+    }
+}
+
 struct Dog;
 
 impl Dog {
+    // This is NOT a method since it doesn't have `self`
     fn baby_name() -> String {
         String::from("Spot")
     }
@@ -63,4 +70,7 @@ fn main() {
     // We use fully qualified syntax to call which implementation specifically to call
     println!("A baby dog is called a {}", <Dog as Animal>::baby_name());
     // Syntax goes like: <Type as Trait>::function(receiver_if_method, next_arg, ...);
+
+    // Even though there's a default implementation for this function in the trait, we still need to specify the specific implementeation
+    //println!("{}", Fat::fat_name());
 }
