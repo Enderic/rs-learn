@@ -1,60 +1,66 @@
 /*
-    When using generic type parameters, we can specify a default concrete type for it
-    In this case, we implement the Add trait to our Point struct to add two points together
+    Rust doesn't stop us from having two traits w/ the same method names OR implementing those to traits on one type
+    We can even go as far as implementing a method on the type w/ the same name as the trait function
 */
 
-use std::ops::Add;
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-struct Point {
-    x: i32,
-    y: i32,
+trait Pilot {
+    fn fly(&self);
 }
 
-impl Add for Point {
-    type Output = Point;
+trait Wizard {
+    fn fly(&self);
+}
 
-    // Still need to explicitly define the type of the parameter
-    fn add(self, other: Point) -> Point {
-        Point {
-            x: self.x + other.x,
-            y: self.y + other.y,
-        }
+struct Human;
+
+impl Pilot for Human {
+    fn fly(&self) {
+        println!("This is your captain speaking.");
     }
 }
 
-// This thin wrapping of an existing type (Meters/Millimeters wrapping over u32) is called `newtype pattern`
-struct Millimeters(u32);
-struct Meters(u32);
-
-impl Add<Meters> for Millimeters {
-    type Output = Millimeters;
-
-    fn add(self, other: Meters) -> Millimeters {
-        Millimeters(self.0 + (other.0 * 1000))
+impl Wizard for Human {
+    fn fly(&self) {
+        println!("Up!");
     }
 }
 
-impl Add<Meters> for Millimeters {
-    type Output = Millimeters;
-
-    f
+impl Human {
+    fn fly(&self) {
+        println!("*waving arms furiously*");
+    }
 }
 
-// Add implementation
-// Rhs=Self; Rhs is a generic & Self is the default concrete type
-// This is saying that the default type of Rhs will be the type we're implementing Add on
-// In the point implementation, we do use the default for Rhs
-// In the meters implementation, we add millimeters w/ meters, not using the default for Rhs
-trait Add<Rhs=Self> {
-    type Output;
+// Here we have non-method functions; w/o a self parameter
+trait Animal {
+    fn baby_name() -> String;
+}
 
-    fn add(self, rhs: Rhs) -> Self::Output;
+struct Dog;
+
+impl Dog {
+    fn baby_name() -> String {
+        String::from("Spot")
+    }
+}
+
+impl Animal for Dog {
+    fn baby_name() -> String {
+        String::from("puppy")
+    }
 }
 
 fn main() {
-    assert_eq!(
-        Point { x: 1, y: 0 } + Point { x: 2, y: 3 },
-        Point { x: 3, y: 3 }
-    );
+    let person = Human;
+    person.fly(); // When we call it like this, we get the directly implementation of .fly() from Human
+    // We can call specific traits of the function using types by specifying trait name then passing the object through, this works b/c .fly() takes the self parameter
+    Pilot::fly(&person);
+    Wizard::fly(&person);
+
+    // This uses the direct implementation on Dog 
+    println!("A baby dog is called a {}", Dog::baby_name());
+    // For using the Animal impl of .baby_name(), we can't just do ` Animal::baby_name()` since Rust won't know which implementation to use
+    // We use fully qualified syntax to call which implementation specifically to call
+    println!("A baby dog is called a {}", <Dog as Animal>::baby_name());
+    // Syntax goes like: <Type as Trait>::function(receiver_if_method, next_arg, ...);
 }
