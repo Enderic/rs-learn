@@ -1,76 +1,28 @@
 /*
-    Rust doesn't stop us from having two traits w/ the same method names OR implementing those to traits on one type
-    We can even go as far as implementing a method on the type w/ the same name as the trait function
+    Orphan Rule - We can only implement a trait on a type if either the trait or type are local to the crate
+    We can get around this using the Newtype Pattern (originates from Haskell)
+
+    We wrap an existing type that we want to implement on in a tuple struct (thin wrapper)
+    The wrapper struct will then be local to the crate & we can implement a trait on it
+    
+    If we try to implement Display on Vec<T>, the orphan rule prevents us from doing so since they're both not local to the crate
+    We thin wrap Vec<T> in a tuple struct & implement Display on that wrapper struct
 */
 
-trait Pilot {
-    fn fly(&self);
-}
+use std::fmt;
 
-trait Wizard {
-    fn fly(&self);
-}
+// We would need to implement all the methods of Vec<String> in the Wrapper so we don't have to continuously call self.0 & treat Wrapper exactly like Vec<T>
+// We can use the Deref trait on Wrapper to return the inner type to access every method of the inner type
+struct Wrapper(Vec<String>);
 
-struct Human;
-
-impl Pilot for Human {
-    fn fly(&self) {
-        println!("This is your captain speaking.");
-    }
-}
-
-impl Wizard for Human {
-    fn fly(&self) {
-        println!("Up!");
-    }
-}
-
-impl Human {
-    fn fly(&self) {
-        println!("*waving arms furiously*");
-    }
-}
-
-// Here we have non-method functions; w/o a self parameter
-trait Animal {
-    fn baby_name() -> String;
-}
-
-trait Fat {
-    fn fat_name() -> String {
-        String::from("Fat")
-    }
-}
-
-struct Dog;
-
-impl Dog {
-    // This is NOT a method since it doesn't have `self`
-    fn baby_name() -> String {
-        String::from("Spot")
-    }
-}
-
-impl Animal for Dog {
-    fn baby_name() -> String {
-        String::from("puppy")
+impl fmt::Display for Wrapper {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // We use self.0 since Wrapper is a tuple struct, & 0 is the first element in that tuple which is the Vec<String>
+        write!(f, "[{}]", self.0.join(", "))
     }
 }
 
 fn main() {
-    let person = Human;
-    person.fly(); // When we call it like this, we get the directly implementation of .fly() from Human
-    // We can call specific traits of the function using types by specifying trait name then passing the object through, this works b/c .fly() takes the self parameter
-    Pilot::fly(&person);
-    Wizard::fly(&person);
-
-    // This uses the direct implementation on Dog 
-    println!("A baby dog is called a {}", Dog::baby_name());
-    // For using the Animal impl of .baby_name(), we can't just do ` Animal::baby_name()` since Rust won't know which implementation to use
-    // We use fully qualified syntax to call which implementation specifically to call
-    println!("A baby dog is called a {}", <Dog as Animal>::baby_name());
-    // Syntax goes like: <Type as Trait>::function(receiver_if_method, next_arg, ...);
-
-    // Even though there's a default implementation for this function in the trait, we still need to specify the specific implementeation
-    //println!("{}", Fat::fat_name());
+    let w = Wrapper(vec![String::from("hello"), String::from("world")]);
+    println!("w = {w}");
 }
