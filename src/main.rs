@@ -1,28 +1,47 @@
 /*
-    Orphan Rule - We can only implement a trait on a type if either the trait or type are local to the crate
-    We can get around this using the Newtype Pattern (originates from Haskell)
+    We can use the newtype pattern in a lot of ways
+    In the previous section we had the Millimeter & Meter structs that wrapped a u32 in a newtype (tuple struct)
+    If we try writing a function that takes a Millimeter type, program wouldn't compile if we tried to use Meters or u32
 
-    We wrap an existing type that we want to implement on in a tuple struct (thin wrapper)
-    The wrapper struct will then be local to the crate & we can implement a trait on it
-    
-    If we try to implement Display on Vec<T>, the orphan rule prevents us from doing so since they're both not local to the crate
-    We thin wrap Vec<T> in a tuple struct & implement Display on that wrapper struct
+    Rust has type aliases where we can give a name for an existing type w/ the `type` keyword
+    Treated the same as the the original type
+    Only downside is we don't get type checking between the two, so if we mix them up, we don't get an error
 */
 
-use std::fmt;
+type Kilometers = i32;
 
-// We would need to implement all the methods of Vec<String> in the Wrapper so we don't have to continuously call self.0 & treat Wrapper exactly like Vec<T>
-// We can use the Deref trait on Wrapper to return the inner type to access every method of the inner type
-struct Wrapper(Vec<String>);
+// Main use case is to reduce repetition of long types
+// Say we have the function below, we might wanna use that type in a lot of places, which can get confusing & repetitive
+fn takes_long_type(f: Box<dyn Fn() + Send + 'static>) {}
 
-impl fmt::Display for Wrapper {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // We use self.0 since Wrapper is a tuple struct, & 0 is the first element in that tuple which is the Vec<String>
-        write!(f, "[{}]", self.0.join(", "))
-    }
+// If we put it in a type alias, then all we need to do is use Thunk, making everything more manageable
+type Thunk = Box<dyn Fn() + Send + 'static>;
+
+fn takes_short_type(f: Thunk) {}
+
+// We can also use it w/ Result<T, E> which is a common pattern that can get annoying to type out fully
+// We can use ? on this as well like we do w/ regular Result types since it's treated as the same
+type Res<T> = std::result::Result<T, std::io::Error>;
+
+pub trait Writing {
+    fn write(&mut self, buf: &[u8]) -> Res<usize>;
+    fn flush(&mut self) -> Res<()>;
 }
 
+
 fn main() {
-    let w = Wrapper(vec![String::from("hello"), String::from("world")]);
-    println!("w = {w}");
+
+    let x: Kilometers = 6;
+    let mut y = 1;
+
+    // Can add together
+    let mut z = x + y;
+    println!("x + y = {}", x + y);
+
+    // Pretty much treated like the same variable
+    let mut a = &mut y;
+    *a += 1;
+    a = &mut z;
+    *a = *a + x;
+    println!("y, z ({}, {})", y, z);
 }
