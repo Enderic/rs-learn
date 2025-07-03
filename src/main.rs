@@ -14,6 +14,12 @@ fn add_one(x: i32) -> i32 {
     x + 1
 }
 
+// Each variant in an enum becomes an initializer function that we can use as function pointers taht implement closure traits
+enum Status {
+    Value(u32),
+    Stop,
+}
+
 // The syntax is fn(parameter types) -> return type
 // In this case, it's an fn that takes one i32 as input & returns an i32
 // We call it twice passing in arg & return sum
@@ -37,4 +43,6 @@ fn main() {
     let list_of_strings_fn: Vec<String> = 
         list_of_numbers.iter().map(ToString::to_string).collect();
 
+    // We create a vector of Status::Value instances using a range, then calling .map() on it & use the initializer function, then collect all of it into a vector
+    let list_of_statuses: Vec<Status> = (0u32..20).map(Status::Value).collect();
 }
